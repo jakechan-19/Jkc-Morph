@@ -1,0 +1,439 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JekiChain</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-image: url('https://raw.githubusercontent.com/jakechan-19/JekiChain/refs/heads/main/jkcbg.jpg');
+            background-size: cover;
+            color: white;
+        }
+
+        /* Preloader Style */
+        #preloader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 9999;
+        }
+
+        #preloader img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Game Style */
+        #game-container {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .coin {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            position: absolute;
+            cursor: pointer;
+            animation: float 2s infinite;
+            background-image: url('https://raw.githubusercontent.com/jakechan-19/JekiChain/refs/heads/main/coins.png');
+            background-size: cover;
+        }
+
+        /* Coin Types */
+        .coin.gold {
+            background-position: 0 0; /* Gambar untuk koin emas */
+        }
+
+        .coin.silver {
+            background-position: -50px 0; /* Gambar untuk koin perak */
+        }
+
+        .coin.copper {
+            background-position: -100px 0; /* Gambar untuk koin tembaga */
+        }
+
+        .powerup {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: absolute;
+            cursor: pointer;
+            background-color: purple;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            animation: float 3s infinite;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* UI Elements */
+        #ui {
+            position: absolute;
+            top: 70px; /* Jarak dari atas untuk memberi ruang bagi judul game */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        #ui div {
+            margin-bottom: 10px; /* Jarak antar elemen UI */
+            font-size: 20px;
+        }
+
+        #start-button, #restart-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background-color: #e67e22;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+
+        #start-button:hover, #restart-button:hover {
+            background-color: #d35400;
+        }
+
+        /* Title Style */
+        #game-title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 30px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        /* Countdown Style */
+        #countdown {
+            font-size: 24px;
+            margin-top: 15px;
+        }
+
+        /* Message Style */
+        #message {
+            font-size: 20px;
+            color: red;
+            margin-top: 20px;
+        }
+
+        /* Timer Style */
+        #timer {
+            font-size: 20px;
+            color: yellow;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Preloader Section -->
+<div id="preloader">
+    <img src="img1.jpg" alt="Loading...">
+</div>
+
+<!-- Game Container -->
+<div id="game-container">
+    <!-- Game Title -->
+    <div id="game-title">JekiChain</div>
+    
+    <!-- UI Elements -->
+    <div id="ui">
+        <div id="balance">Balance JKC: 0</div>
+        <div id="tickets">Tickets: 5</div>
+        <div id="countdown">Time: 30</div>
+        <div id="message"></div>
+        <div id="timer" style="display:none;"></div> <!-- Timer untuk 24 jam -->
+    </div>
+    
+    <!-- Start Button -->
+    <button id="start-button">Play</button>
+    
+    <!-- Restart Button (Hidden Awalnya) -->
+    <button id="restart-button" style="display:none;">Play Again</button>
+</div>
+
+<!-- Audio Elements -->
+<audio id="coin-sound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3" preload="auto"></audio>
+<audio id="powerup-sound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+<audio id="gameover-sound" src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" preload="auto"></audio>
+
+<script>
+    // Preloader
+    window.onload = function() {
+        setTimeout(() => {
+            document.getElementById('preloader').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            checkTickets();
+            updateBalance();
+        }, 3000); // Preloader akan hilang setelah 3 detik
+    }
+
+    // Game Variables
+    let score = 0;
+    let tickets = 5; // Mengatur jumlah Tickets menjadi 5
+    let gameInterval;
+    let countdownInterval;
+    let coinIntervalTime = 1000; // Mulai dengan 1 detik
+    let doubleJKC = false; // Variabel untuk status power-up
+    let doubleJKCTimer;
+
+    // Audio Elements
+    const coinSound = document.getElementById('coin-sound');
+    const powerupSound = document.getElementById('powerup-sound');
+    const gameoverSound = document.getElementById('gameover-sound');
+
+    // UI Elements
+    const balanceDisplay = document.getElementById('balance');
+    const ticketsDisplay = document.getElementById('tickets');
+    const countdownDisplay = document.getElementById('countdown');
+    const startButton = document.getElementById('start-button');
+    const restartButton = document.getElementById('restart-button');
+    const messageDisplay = document.getElementById('message');
+    const timerDisplay = document.getElementById('timer');
+
+    // Start Game
+    startButton.addEventListener('click', startGame);
+    restartButton.addEventListener('click', restartGame);
+
+    function startGame() {
+        if (tickets <= 0) {
+            messageDisplay.innerText = 'There are no tickets left. Come back tomorrow.';
+            startTimer(); // Memulai timer 24 jam
+            return;
+        }
+
+        score = 0; // Memulai score dari 0 setiap kali permainan dimulai
+        tickets--;
+        updateTickets();
+        startButton.style.display = 'none';
+        restartButton.style.display = 'none';
+        messageDisplay.innerText = '';
+        loadBalance(); // Memastikan balance di-load
+        updateBalance();
+        gameInterval = setInterval(createCoin, coinIntervalTime);
+        startCountdown(30); // Set waktu permainan menjadi 30 detik
+    }
+
+    function restartGame() {
+        // Reset Variables
+        clearInterval(gameInterval);
+        clearInterval(countdownInterval); // Menghentikan hitungan mundur
+        score = 0; // Memulai score dari 0
+        updateBalance(); // Update balance
+        // Remove existing coins
+        const existingCoins = document.querySelectorAll('.coin, .powerup');
+        existingCoins.forEach(coin => coin.remove());
+        // Mulai permainan lagi dengan sama
+        startGame();
+    }
+
+    function startCountdown(seconds) {
+        let timeLeft = seconds;
+        countdownDisplay.innerText = 'Time: ' + timeLeft;
+        countdownInterval = setInterval(() => {
+            timeLeft--;
+            countdownDisplay.innerText = 'Time: ' + timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function endGame() {
+        clearInterval(gameInterval);
+        clearInterval(countdownInterval);
+        gameoverSound.play();
+        // Simpan score ke balance
+        saveBalance(score);
+        alert('Game Over! Total JKC clicks: ' + score);
+        updateBalance(); // Update balance JKC
+        restartButton.style.display = 'block';
+    }
+
+    function updateBalance() {
+        const balance = loadBalance();
+        balanceDisplay.innerText = 'Balance JKC: ' + balance;
+    }
+
+    function updateTickets() {
+        ticketsDisplay.innerText = 'Tickets: ' + tickets;
+        localStorage.setItem('tickets', tickets);
+        localStorage.setItem('ticketResetTime', Date.now());
+    }
+
+    // Game Logic
+    function createCoin() {
+        const gameContainer = document.getElementById('game-container');
+        const isPowerup = Math.random() < 0.1; // 10% kemungkinan power-up
+        if (isPowerup) {
+            createPowerup();
+            return;
+        }
+
+        const coin = document.createElement('div');
+        coin.classList.add('coin');
+        const coinType = getRandomCoinType();
+        coin.classList.add(coinType.class);
+        coin.dataset.value = coinType.value;
+        coin.style.top = Math.random() * 90 + 'vh';
+        coin.style.left = Math.random() * 90 + 'vw';
+        coin.style.transform = 'scale(0)';
+        // Animasi muncul
+        setTimeout(() => {
+            coin.style.transform = 'scale(1)';
+        }, 100);
+
+        coin.onclick = () => {
+            // Menggandakan nilai jika power-up aktif
+            const value = doubleJKC ? coinType.value * 2 : coinType.value;
+            score += value;
+            coinSound.currentTime = 0;
+            coinSound.play();
+            coin.remove();
+        };
+        gameContainer.appendChild(coin);
+
+        // Hapus koin setelah 3 detik jika tidak diklik
+        setTimeout(() => {
+            if (document.body.contains(coin)) {
+                coin.remove();
+            }
+        }, 3000);
+    }
+
+    function createPowerup() {
+        const gameContainer = document.getElementById('game-container');
+        const powerup = document.createElement('div');
+        powerup.classList.add('powerup');
+        powerup.innerText = '×2';
+        powerup.style.top = Math.random() * 90 + 'vh';
+        powerup.style.left = Math.random() * 90 + 'vw';
+        powerup.style.transform = 'scale(0)';
+        // Animasi muncul
+        setTimeout(() => {
+            powerup.style.transform = 'scale(1)';
+        }, 100);
+
+        powerup.onclick = () => {
+            activateDoubleJKC();
+            powerupSound.currentTime = 0;
+            powerupSound.play();
+            powerup.remove();
+        };
+        gameContainer.appendChild(powerup);
+
+        // Hapus powerup setelah 5 detik jika tidak diklik
+        setTimeout(() => {
+            if (document.body.contains(powerup)) {
+                powerup.remove();
+            }
+        }, 5000);
+    }
+
+    function activateDoubleJKC() {
+        doubleJKC = true;
+        // Reset double JKC setelah 10 detik
+        clearTimeout(doubleJKCTimer);
+        doubleJKCTimer = setTimeout(() => {
+            doubleJKC = false;
+        }, 10000);
+    }
+
+    function getRandomCoinType() {
+        const rand = Math.random();
+        if (rand < 0.5) {
+            return { class: 'gold', value: 10 };
+        } else if (rand < 0.8) {
+            return { class: 'silver', value: 5 };
+        } else {
+            return { class: 'copper', value: 2 };
+        }
+    }
+
+    // Local Storage Functions
+    function loadBalance() {
+        let balance = localStorage.getItem('jekichainBalance');
+        return balance ? parseInt(balance) : 0;
+    }
+
+    function saveBalance(newScore) {
+        let balance = loadBalance();
+        balance += newScore;
+        localStorage.setItem('jekichainBalance', balance);
+    }
+
+    function checkTickets() {
+        const savedTickets = localStorage.getItem('tickets');
+        const resetTime = localStorage.getItem('ticketResetTime');
+
+        if (savedTickets !== null) {
+            tickets = parseInt(savedTickets);
+
+            // Cek apakah sudah 24 jam
+            if (resetTime !== null && Date.now() - parseInt(resetTime) >= 86400000) {
+                tickets = 5; // Reset Tickets menjadi 5 setelah 24 jam
+            }
+        } else {
+            tickets = 5; // Inisialisasi dengan 5 Tickets
+        }
+        
+        updateTickets();
+    }
+
+    function startTimer() {
+        let timeLeft = 86400; // 24 jam dalam detik
+        timerDisplay.style.display = 'block';
+        timerDisplay.innerText = 'Next tickets in: 24:00:00';
+        const timerInterval = setInterval(() => {
+            timeLeft--;
+            const hours = Math.floor(timeLeft / 3600);
+            const minutes = Math.floor((timeLeft % 3600) / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.innerText = `Next tickets in: ${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerDisplay.innerText = 'Tickets are refilled!'; // Pesan setelah 24 jam
+                setTimeout(() => {
+                    location.reload(); // Reload halaman untuk reset semua
+                }, 3000); // Reload setelah 3 detik
+            }
+        }, 1000);
+    }
+</script>
+
+</body>
+</html>

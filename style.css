@@ -1,0 +1,33 @@
+body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #87CEEB; /* Warna langit */
+}
+
+#gameArea {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    border: 2px solid #000;
+    overflow: hidden;
+    background-color: #A3D98C; /* Warna hutan */
+}
+
+#knight {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: #007BFF; /* Warna biru untuk kesatria */
+    border-radius: 5px;
+}
+
+#enemy {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: #FF0000; /* Warna merah untuk musuh */
+    border-radius: 5px;
+}
